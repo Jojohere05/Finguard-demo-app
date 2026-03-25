@@ -1,5 +1,6 @@
 import jwt
 
 def generate_token(user_id):
-    secret = "my_jwt_secret_key"
+    import os
+    secret = os.getenv("JWT_SECRET")
     return jwt.encode({"user": user_id}, secret, algorithm="HS256")

@@ -1,7 +1,8 @@
 import requests
 
 # Simulating payment processing
-STRIPE_API_KEY = "sk_test_123456789"
+import os
+STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 
 def process_payment(amount, user_id):
     url = "https://api.stripe.com/v1/payment_intents"
