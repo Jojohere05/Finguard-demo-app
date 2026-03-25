@@ -18,7 +18,7 @@ jobs:
 
       - name: Call FinGuard Backend
         run: |
-          curl -X POST "https://https://finguard-backend-1.onrender.com/api/scan" \
+          curl -X POST "https://finguard-backend-1.onrender.com/api/scan" \
           -F "file=@repo.zip" \
           -o result.json
 
