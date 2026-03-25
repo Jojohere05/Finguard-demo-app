@@ -4,38 +4,33 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
   scan:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Python
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Zip repository
+        run: zip -r repo.zip . -x ".git/*" "node_modules/*"
 
-      # 3. Install dependencies (optional but professional)
-      - name: Install dependencies
+      - name: Call FinGuard Backend
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          curl -X POST "https://https://finguard-backend-1.onrender.com/api/scan" \
+          -F "file=@repo.zip" \
+          -o result.json
 
-      # 4. Run FinGuard scan (Demo Mode)
-      - name: Run FinGuard Scan
+      - name: Show result
+        run: cat result.json
+
+      - name: Fail if risky
         run: |
-          echo "🔍 Running FinGuard Security Scan..."
-          python scripts/demo_scan.py
-
-      # 5. Upload results (optional but looks good)
-      - name: Upload scan result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: finguard-results
-          path: .
+          DECISION=$(jq -r '.decision' result.json)
+          if [ "$DECISION" = "BLOCK" ] || [ "$DECISION" = "REVIEW" ]; then
+            echo "❌ FinGuard blocked this commit"
+            exit 1
+          else
+            echo "✅ FinGuard passed"
+          fi
