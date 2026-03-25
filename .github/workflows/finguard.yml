@@ -1,0 +1,41 @@
+name: FinGuard Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. Install dependencies (optional but professional)
+      - name: Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      # 4. Run FinGuard scan (Demo Mode)
+      - name: Run FinGuard Scan
+        run: |
+          echo "🔍 Running FinGuard Security Scan..."
+          python scripts/demo_scan.py
+
+      # 5. Upload results (optional but looks good)
+      - name: Upload scan result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finguard-results
+          path: .
