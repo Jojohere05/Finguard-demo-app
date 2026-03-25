@@ -7,7 +7,7 @@ violations = []
 
 patterns = {
     "API_KEY": r"sk_test_[0-9a-zA-Z]+",
-    "JWT_SECRET": r"jwt_secret|JWT_SECRET",
+    "JWT_SECRET": r"JWT_SECRET\s*=\s*['\"].+['\"]",
     "PASSWORD": r"password\s*=\s*['\"].+['\"]"
 }
 
