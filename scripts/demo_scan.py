@@ -12,7 +12,7 @@ patterns = {
 }
 
 for root, dirs, files in os.walk("."):
-    dirs[:] = [d for d in dirs if d not in {".git", "__pycache__", "node_modules"}]
+    dirs[:] = [d for d in dirs if d not in {".git", "__pycache__", "node_modules","scripts"}]
 
     for file in files:
         if file.endswith((".py", ".yaml", ".yml")):
