@@ -25,16 +25,24 @@ jobs:
 
       - name: Call FinGuard backend
         env:
-          FINGUARD_API_URL: ${{ secrets.FINGUARD_API_URL }}
+          BACKEND_URL: ${{ secrets.FINGUARD_API_URL }}
         run: |
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "ERROR: FINGUARD_API_URL secret is not set"
+            exit 1
+          fi
+
+          echo "Calling FinGuard at: ${BACKEND_URL}/api/scan"
+
           curl -sS -X POST \
             -F "file=@repo.zip" \
-            "$FINGUARD_API_URL/api/scan" \
+            "${BACKEND_URL}/api/scan" \
             -o finguard-result.json
 
           python - << 'PY'
-          import json, sys, pathlib
-          data = json.load(open("finguard-result.json", "r", encoding="utf-8"))
+          import json, sys
+          with open("finguard-result.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
           print("=== FinGuard Result ===")
           print("Decision:", data.get("decision"))
           print("Risk score:", data.get("risk_score"))
