@@ -2,9 +2,11 @@
 // These are fake keys and test values, used only
 // to exercise FinGuard's secrets + fintech logic.
 
-export const STRIPE_PUBLISHABLE_KEY = "pk_live_FAKE_FRONTEND_KEY_DO_NOT_USE";
-export const RAZORPAY_KEY_ID = "rzp_live_FAKE_FRONTEND_KEY_DO_NOT_USE";
-export const PAYMENT_GATEWAY_API_KEY = "fg_pg_api_key_1234567890_FAKE";
+// These dummy keys are shaped like real Stripe/Razorpay keys so
+// FinGuard's secrets agent will detect them, but they are NOT real.
+export const STRIPE_PUBLISHABLE_KEY = "pk_live_9xKf3qA7bC2mZp8Lr4Tn6Vy1Ds0Qw";
+export const RAZORPAY_KEY_ID = "rzp_live_7HdPq9LmX2vBt5NcR8yKz3Ws";
+export const PAYMENT_GATEWAY_API_KEY = "fg_pg_api_key_Z8xC3vB7nM4kL2pQ9rT1";
 
 // Simulated UPI / card test data (non-real)
 export const TEST_UPI_VPA = "demo-merchant@upi";
