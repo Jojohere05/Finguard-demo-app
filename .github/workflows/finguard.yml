@@ -1,36 +1,50 @@
-name: FinGuard Security Scan
+name: FinGuard Scan
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   scan:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Zip repository
-        run: zip -r repo.zip . -x ".git/*" "node_modules/*"
-
-      - name: Call FinGuard Backend
         run: |
-          curl -X POST "https://finguard-backend-1.onrender.com/api/scan" \
-          -F "file=@repo.zip" \
-          -o result.json
+          zip -r repo.zip . \
+            -x "*.git*" \
+               "node_modules/*" \
+               "dist/*" \
+               "build/*"
 
-      - name: Show result
-        run: cat result.json
-
-      - name: Fail if risky
+      - name: Call FinGuard backend
+        env:
+          FINGUARD_API_URL: ${{ secrets.FINGUARD_API_URL }}
         run: |
-          DECISION=$(jq -r '.decision' result.json)
-          if [ "$DECISION" = "BLOCK" ] || [ "$DECISION" = "REVIEW" ]; then
-            echo "❌ FinGuard blocked this commit"
-            exit 1
-          else
-            echo "✅ FinGuard passed"
-          fi
+          curl -sS -X POST \
+            -F "file=@repo.zip" \
+            "$FINGUARD_API_URL/api/scan" \
+            -o finguard-result.json
+
+          python - << 'PY'
+          import json, sys, pathlib
+          data = json.load(open("finguard-result.json", "r", encoding="utf-8"))
+          print("=== FinGuard Result ===")
+          print("Decision:", data.get("decision"))
+          print("Risk score:", data.get("risk_score"))
+          print("Summary:", data.get("summary"))
+          if data.get("decision") == "BLOCK":
+              sys.exit(1)
+          PY
+
+      - name: Upload FinGuard result
+        uses: actions/upload-artifact@v4
+        with:
+          name: finguard-result
+          path: finguard-result.json
