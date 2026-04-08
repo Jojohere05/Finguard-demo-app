@@ -1,0 +1,67 @@
+name: FinGuard Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Zip repository
+        run: |
+          zip -r repo.zip . \
+            -x "*.git*" \
+               "node_modules/*" \
+               "dist/*" \
+               "build/*"
+
+      - name: Call FinGuard backend
+        env:
+          BACKEND_URL: ${{ secrets.FINGUARD_API_URL }}
+        run: |
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "ERROR: FINGUARD_API_URL secret is not set"
+            exit 1
+          fi
+
+          echo "Calling FinGuard at: ${BACKEND_URL}/api/scan"
+
+          STATUS=$(curl -sS -w "%{http_code}" -o finguard-result.json \
+            -X POST \
+            -F "file=@repo.zip" \
+            "${BACKEND_URL}/api/scan")
+
+          echo "HTTP status: ${STATUS}"
+          echo "Raw response:"
+          cat finguard-result.json || true
+
+          if [ "${STATUS}" -ge 400 ]; then
+            echo "FinGuard returned error HTTP ${STATUS}"
+            exit 1
+          fi
+
+          python - << 'PY'
+          import json, sys
+          with open("finguard-result.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          print("=== FinGuard Result ===")
+          print("Decision:", data.get("decision"))
+          print("Risk score:", data.get("risk_score"))
+          print("Summary:", data.get("summary"))
+          if data.get("decision") == "BLOCK":
+              sys.exit(1)
+          PY
+
+      - name: Upload FinGuard result
+        uses: actions/upload-artifact@v4
+        with:
+          name: finguard-result
+          path: finguard-result.json
