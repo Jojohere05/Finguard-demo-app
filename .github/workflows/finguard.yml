@@ -34,10 +34,19 @@ jobs:
 
           echo "Calling FinGuard at: ${BACKEND_URL}/api/scan"
 
-          curl -sS -X POST \
+          STATUS=$(curl -sS -w "%{http_code}" -o finguard-result.json \
+            -X POST \
             -F "file=@repo.zip" \
-            "${BACKEND_URL}/api/scan" \
-            -o finguard-result.json
+            "${BACKEND_URL}/api/scan")
+
+          echo "HTTP status: ${STATUS}"
+          echo "Raw response:"
+          cat finguard-result.json || true
+
+          if [ "${STATUS}" -ge 400 ]; then
+            echo "FinGuard returned error HTTP ${STATUS}"
+            exit 1
+          fi
 
           python - << 'PY'
           import json, sys
