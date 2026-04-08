@@ -23,7 +23,7 @@ jobs:
                "dist/*" \
                "build/*"
 
-      - name: Call FinGuard backend
+      - name: Call FinGuard backend and print report
         env:
           BACKEND_URL: ${{ secrets.FINGUARD_API_URL }}
         run: |
@@ -32,35 +32,76 @@ jobs:
             exit 1
           fi
 
-          echo "Calling FinGuard at: ${BACKEND_URL}/api/scan"
+          echo "Calling FinGuard at: ${BACKEND_URL}/api/scan/"
 
-          STATUS=$(curl -sS -w "%{http_code}" -o finguard-result.json \
+          # Call your Render backend (zip upload)
+          curl -sS -L -f \
             -X POST \
             -F "file=@repo.zip" \
-            "${BACKEND_URL}/api/scan")
+            "${BACKEND_URL}/api/scan/" \
+            -o finguard-result.json
 
-          echo "HTTP status: ${STATUS}"
-          echo "Raw response:"
-          cat finguard-result.json || true
-
-          if [ "${STATUS}" -ge 400 ]; then
-            echo "FinGuard returned error HTTP ${STATUS}"
-            exit 1
-          fi
-
+          # Pretty-print summary similar to scripts/test_scan.py
           python - << 'PY'
           import json, sys
+
           with open("finguard-result.json", "r", encoding="utf-8") as f:
-              data = json.load(f)
-          print("=== FinGuard Result ===")
-          print("Decision:", data.get("decision"))
-          print("Risk score:", data.get("risk_score"))
-          print("Summary:", data.get("summary"))
-          if data.get("decision") == "BLOCK":
+              result = json.load(f)
+
+          score = result.get("risk_score", 0)
+          decision = result.get("decision", "ALLOW")
+          context = result.get("context", {})
+          summary = result.get("summary", {}) or {}
+          by_sev = summary.get("by_severity", {}) or {}
+
+          line = "═" * 58
+          print(line)
+          print("  FinGuard Compliance Scan")
+          print(line)
+          print(f"  Risk Score : {score}/100")
+          print(f"  Decision   : {decision}")
+          if result.get("amplified"):
+              print("  Amplified  : YES (fintech + sensitivity boost)")
+
+          print("\n  Context:")
+          print(f"    Terraform : {bool(context.get('has_terraform'))}")
+          print(f"    Fintech   : {bool(context.get('is_fintech'))}")
+          print(f"    Docker    : {bool(context.get('has_docker'))}")
+          print(f"    Deps      : {bool(context.get('has_dependencies'))}")
+
+          print("\n  Violations:")
+          print(f"    CRITICAL : {by_sev.get('CRITICAL', 0)}")
+          print(f"    HIGH     : {by_sev.get('HIGH', 0)}")
+          print(f"    MEDIUM   : {by_sev.get('MEDIUM', 0)}")
+          print(f"    LOW      : {by_sev.get('LOW', 0)}")
+          print(f"    Secrets  : {summary.get('secrets', 0)}")
+          print(f"    CVEs     : {summary.get('dependencies', 0)}")
+          print(f"    Terraform: {summary.get('terraform', 0)}")
+          print(f"    Dismissed: {summary.get('dismissed', 0)}")
+          print(f"    Escalated: {summary.get('escalated', 0)}")
+
+          print("\n  GitHub Actions View:")
+          print("  " + "=" * 52)
+          print("    FinGuard Compliance Scan")
+          print("  " + "=" * 52)
+          print(f"    Risk Score : {score}/100")
+          print(f"    Decision   : {decision}")
+          print(f"    CRITICAL   : {by_sev.get('CRITICAL', 0)}")
+          print(f"    HIGH       : {by_sev.get('HIGH', 0)}")
+          print("  " + "=" * 52)
+
+          if decision == "BLOCK":
+              print("\n  🚫 Pipeline BLOCKED - fix CRITICAL issues before merge")
               sys.exit(1)
+          elif decision == "REVIEW":
+              print("\n  🔍 REVIEW required (non-blocking for now)")
+          elif decision == "WARN":
+              print("\n  ⚠️  WARNING - not blocking, but review recommended")
+          else:
+              print("\n  ✅ ALLOW - all checks passed")
           PY
 
-      - name: Upload FinGuard result
+      - name: Upload FinGuard result JSON
         uses: actions/upload-artifact@v4
         with:
           name: finguard-result
